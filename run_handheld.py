@@ -17,7 +17,62 @@ import cv2
 import rawpy
 
 from handheld_super_resolution import process
-from handheld_super_resolution.utils_dng import save_as_dng 
+from handheld_super_resolution.utils_dng import save_as_dng
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Handheld Super-Resolution with TIF support')
+    parser.add_argument('--impath', type=str, required=True, help='Path to input images')
+    parser.add_argument('--outpath', type=str, required=True, help='Output path')
+    parser.add_argument('--format', type=str, choices=['auto', 'dng', 'tif'],
+                        default='auto', help='Input format')
+    parser.add_argument('--scale', type=float, default=2.0, help='Super-resolution scale')
+
+    args = parser.parse_args()
+
+    # Auto-detect format
+    if args.format == 'auto':
+        input_path = Path(args.impath)
+        if input_path.is_dir():
+            tif_files = list(input_path.glob('*.tif')) + list(input_path.glob('*.tiff'))
+            if tif_files:
+                format_type = 'tif'
+            else:
+                format_type = 'dng'
+        else:
+            format_type = 'tif' if args.impath.lower().endswith(('.tif', '.tiff')) else 'dng'
+    else:
+        format_type = args.format
+
+    # Process based on format
+    if format_type == 'tif':
+        from tif_processing import TIFProcessor, process_tif_burst
+
+        result, metadata = process_tif_burst(
+            args.impath,
+            options={'verbose': 1},
+            params={'scale': args.scale}
+        )
+
+        # Save result
+        processor = TIFProcessor()
+        if args.outpath.lower().endswith(('.tif', '.tiff')):
+            processor.save_tif_image(result, args.outpath, metadata)
+        else:
+            # Save as PNG/JPG for visualization
+            from PIL import Image
+            if result.dtype != np.uint8:
+                result = (result * 255).astype(np.uint8)
+            Image.fromarray(result).save(args.outpath)
+    else:
+        # Use original DNG processing
+        from handheld_super_resolution import process
+        result = process(args.impath, {'verbose': 1}, {'scale': args.scale})
+
+
+if __name__ == "__main__":
+    main()
+
 
 def print_parameters(args):
     print('\nParameters:\n')
