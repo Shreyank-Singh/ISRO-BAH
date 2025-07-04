@@ -25,12 +25,28 @@ def compute_full_reference(sr_img, gt_img):
     # Resize ground-truth if needed
     if sr.shape != gt.shape:
         print(f"Resizing ground-truth from {gt.shape} to {sr.shape}")
-        if sr.ndim == 2:
+        # Handle grayscale/color and channel mismatch
+        if sr.ndim == 2 and gt.ndim == 2:
             gt = resize(gt, sr.shape, order=3, mode='reflect', anti_aliasing=True)
-        else:
-            # Use multichannel=True for color images in older skimage
-            gt = resize(gt, sr.shape, order=3, mode='reflect', anti_aliasing=True, multichannel=True)
-    # Handle grayscale and color images
+        elif sr.ndim == 3 and gt.ndim == 2:
+            # GT is grayscale, SR is color: stack GT to 3 channels
+            gt = resize(gt, sr.shape[:2], order=3, mode='reflect', anti_aliasing=True)
+            gt = np.stack([gt]*sr.shape[2], axis=-1)
+        elif sr.ndim == 2 and gt.ndim == 3:
+            # SR is grayscale, GT is color: convert GT to grayscale
+            gt = resize(gt, sr.shape, order=3, mode='reflect', anti_aliasing=True)
+            if gt.ndim == 3:
+                gt = gt[..., 0]
+        elif sr.ndim == 3 and gt.ndim == 3:
+            # Both color, but possibly different channels
+            gt = resize(gt, sr.shape, order=3, mode='reflect', anti_aliasing=True)
+            if gt.shape[2] != sr.shape[2]:
+                # Match channels (use first 3 if more, or repeat if less)
+                if gt.shape[2] > sr.shape[2]:
+                    gt = gt[:, :, :sr.shape[2]]
+                else:
+                    gt = np.concatenate([gt] * (sr.shape[2] // gt.shape[2]), axis=2)
+    # Handle grayscale and color images for metrics
     if sr.ndim == 2 or gt.ndim == 2:
         multichannel = False
     else:
