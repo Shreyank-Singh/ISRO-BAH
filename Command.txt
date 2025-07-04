@@ -10,6 +10,9 @@ python install_requirements.py
 
 pip install scikit-image scipy torch torchvision piq
 
+conda install -c conda-forge imagecodecs
+
+
 
 conda env create -f environment.yaml
 conda activate handheld
