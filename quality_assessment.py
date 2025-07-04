@@ -29,31 +29,47 @@ def compute_full_reference(sr_img, gt_img):
         if sr.ndim == 2 and gt.ndim == 2:
             gt = resize(gt, sr.shape, order=3, mode='reflect', anti_aliasing=True)
         elif sr.ndim == 3 and gt.ndim == 2:
-            # GT is grayscale, SR is color: stack GT to 3 channels
             gt = resize(gt, sr.shape[:2], order=3, mode='reflect', anti_aliasing=True)
             gt = np.stack([gt]*sr.shape[2], axis=-1)
         elif sr.ndim == 2 and gt.ndim == 3:
-            # SR is grayscale, GT is color: convert GT to grayscale
             gt = resize(gt, sr.shape, order=3, mode='reflect', anti_aliasing=True)
             if gt.ndim == 3:
                 gt = gt[..., 0]
         elif sr.ndim == 3 and gt.ndim == 3:
-            # Both color, but possibly different channels
             gt = resize(gt, sr.shape, order=3, mode='reflect', anti_aliasing=True)
             if gt.shape[2] != sr.shape[2]:
-                # Match channels (use first 3 if more, or repeat if less)
                 if gt.shape[2] > sr.shape[2]:
                     gt = gt[:, :, :sr.shape[2]]
                 else:
                     gt = np.concatenate([gt] * (sr.shape[2] // gt.shape[2]), axis=2)
+    # Determine window size for SSIM
+    h, w = sr.shape[:2]
+    min_dim = min(h, w)
+    win_size = min(7, min_dim)
+    if win_size % 2 == 0:
+        win_size -= 1
+    if win_size < 3:
+        win_size = 3
     # Handle grayscale and color images for metrics
-    if sr.ndim == 2 or gt.ndim == 2:
-        multichannel = False
-    else:
-        multichannel = True
+    ssim_kwargs = dict(data_range=1.0, win_size=win_size)
+    # Try to use channel_axis if available (newer skimage), else multichannel
+    try:
+        if sr.ndim == 2 or gt.ndim == 2:
+            ssim_kwargs['channel_axis'] = None
+        else:
+            ssim_kwargs['channel_axis'] = -1
+        ssim_val = ssim(gt, sr, **ssim_kwargs)
+    except TypeError:
+        # Fallback for older skimage
+        if sr.ndim == 2 or gt.ndim == 2:
+            ssim_kwargs['multichannel'] = False
+        else:
+            ssim_kwargs['multichannel'] = True
+        ssim_kwargs.pop('channel_axis', None)
+        ssim_val = ssim(gt, sr, **ssim_kwargs)
     return {
         'PSNR': psnr(gt, sr, data_range=1.0),
-        'SSIM': ssim(gt, sr, multichannel=multichannel, data_range=1.0),
+        'SSIM': ssim_val,
         'RMSE': np.sqrt(mse(gt, sr))
     }
 
