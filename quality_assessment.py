@@ -28,7 +28,8 @@ def compute_full_reference(sr_img, gt_img):
         if sr.ndim == 2:
             gt = resize(gt, sr.shape, order=3, mode='reflect', anti_aliasing=True)
         else:
-            gt = resize(gt, sr.shape, order=3, mode='reflect', anti_aliasing=True, channel_axis=-1)
+            # Use multichannel=True for color images in older skimage
+            gt = resize(gt, sr.shape, order=3, mode='reflect', anti_aliasing=True, multichannel=True)
     # Handle grayscale and color images
     if sr.ndim == 2 or gt.ndim == 2:
         multichannel = False
