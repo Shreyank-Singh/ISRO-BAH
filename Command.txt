@@ -1,0 +1,1 @@
+python run_handheld.py --impath "C:\Users\Shreyank\Downloads\ISRO BAH Hackathon\Project File\test_tif_burst" --outpath "result.tif" --format tif
