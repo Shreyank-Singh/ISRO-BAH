@@ -1,1 +1,20 @@
+Open Anaconda Prompt
+
+cd C:\Users\Shreyank\Downloads\ISRO BAH Hackathon\Project File
+
+# Install rasterio and other dependencies
+pip install rasterio pillow numpy scipy
+
+# Or run the installation script
+python install_requirements.py
+
+pip install scikit-image scipy torch torchvision piq
+
+
+conda env create -f environment.yaml
+conda activate handheld
+
+
 python run_handheld.py --impath "C:\Users\Shreyank\Downloads\ISRO BAH Hackathon\Project File\test_tif_burst" --outpath "result.tif" --format tif
+
+python run_handheld.py --impath "C:\Users\Shreyank\Downloads\ISRO BAH Hackathon\Project File\test_tif_burst" --outdir "results"

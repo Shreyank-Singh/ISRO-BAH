@@ -39,8 +39,8 @@ output_img = process(burst_path, options, params)
 
 
 # saving the result
-os.makedirs('./results', exist_ok=True)
-plt.imsave('./results/output_img.png', img_as_ubyte(output_img))
+os.makedirs('results', exist_ok=True)
+plt.imsave('results/output_img.png', img_as_ubyte(output_img))
 
 
 # plotting the result
