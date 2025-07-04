@@ -3,6 +3,7 @@ import glob
 import numpy as np
 from skimage import io, img_as_float
 from skimage.metrics import peak_signal_noise_ratio as psnr, structural_similarity as ssim, mean_squared_error as mse
+from skimage.transform import resize
 from scipy.stats import spearmanr, pearsonr
 
 # Import no-reference IQA metrics
@@ -13,13 +14,21 @@ except ImportError:
 
 try:
     import torch
-    from torchvision import transforms, models
+    from torchvision import transforms
+    from torchvision.models import resnet18, ResNet18_Weights
 except ImportError:
     torch = None
 
 def compute_full_reference(sr_img, gt_img):
     sr = img_as_float(sr_img)
     gt = img_as_float(gt_img)
+    # Resize ground-truth if needed
+    if sr.shape != gt.shape:
+        print(f"Resizing ground-truth from {gt.shape} to {sr.shape}")
+        if sr.ndim == 2:
+            gt = resize(gt, sr.shape, order=3, mode='reflect', anti_aliasing=True)
+        else:
+            gt = resize(gt, sr.shape, order=3, mode='reflect', anti_aliasing=True, channel_axis=-1)
     # Handle grayscale and color images
     if sr.ndim == 2 or gt.ndim == 2:
         multichannel = False
@@ -54,7 +63,7 @@ def compute_deep_feature_score(img, model=None):
     if torch is None:
         return None
     if model is None:
-        model = models.resnet18(pretrained=True)
+        model = resnet18(weights=ResNet18_Weights.DEFAULT)
         model.eval()
     preprocess = transforms.Compose([
         transforms.ToPILImage(),
@@ -65,7 +74,6 @@ def compute_deep_feature_score(img, model=None):
     if img.dtype != np.uint8:
         img = (img / img.max() * 255).astype(np.uint8)
     if img.ndim == 2:
-        # Grayscale to 3-channel
         img = np.stack([img]*3, axis=-1)
     elif img.shape[2] > 3:
         img = img[:, :, :3]
@@ -76,7 +84,6 @@ def compute_deep_feature_score(img, model=None):
     return score
 
 def strip_ap_suffix(filename):
-    # Removes '_AP' before the extension, e.g., 'img001_AP.tif' -> 'img001.tif'
     base, ext = os.path.splitext(filename)
     if base.endswith('_AP'):
         base = base[:-3]
@@ -104,7 +111,6 @@ def evaluate_folder(sr_dir, gt_dir=None):
     return results
 
 def correlation_analysis(results):
-    # Correlate blind metrics with PSNR/SSIM if available
     metrics = ['BRISQUE', 'NIQE', 'PIQE', 'DeepFeature']
     gt_metrics = ['PSNR', 'SSIM', 'RMSE']
     for m in metrics:
